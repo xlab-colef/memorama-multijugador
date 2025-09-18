@@ -106,7 +106,7 @@ socket.on("turnChanged", ({ turn: newTurn }) => {
 socket.on("gameOver", ({ scores: s, winner }) => {
   scores = s;
   updateScoreboard();
-  alert(`Fin de la partida, el ganador es ${winner}`);
+  alert(`Fin de la partida. ${winner}`);
   // volver a pantalla de inicio para nueva partida
   startScreen.style.display = "block";
   scoreboard.style.display = "none";
