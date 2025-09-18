@@ -2,41 +2,47 @@ body {
   font-family: Arial, sans-serif;
   text-align: center;
   background: #f0f0f0;
+  margin: 0;
+  padding: 20px;
 }
 
 h1 {
-  margin: 20px 0;
+  margin: 10px 0 20px;
+}
+
+#start-screen {
+  margin-bottom: 12px;
 }
 
 #scoreboard {
-  margin: 20px 0;
-  font-size: 1.2rem;
+  margin: 12px 0;
 }
 
 .scores {
   display: flex;
   justify-content: center;
   gap: 40px;
-  margin-top: 10px;
+  margin-top: 8px;
 }
 
 .board {
   display: grid;
   grid-template-columns: repeat(4, 100px);
-  grid-gap: 15px;
+  grid-gap: 12px;
   justify-content: center;
-  margin: 20px auto;
+  margin: 18px auto;
 }
 
 .card {
   width: 100px;
   height: 100px;
   background: #333;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  border-radius: 10px;
-  cursor: pointer;
+  border-radius: 8px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  cursor:pointer;
+  user-select:none;
 }
 
 .card.flipped {
@@ -47,3 +53,4 @@ h1 {
   background: #fff;
   border: 3px solid #4caf50;
 }
+
