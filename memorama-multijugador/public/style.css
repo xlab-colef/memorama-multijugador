@@ -10,8 +10,8 @@ h1 {
   margin: 10px 0 20px;
 }
 
-#start-screen {
-  margin-bottom: 12px;
+#menu-screen {
+  margin-bottom: 20px;
 }
 
 #scoreboard {
@@ -53,4 +53,3 @@ h1 {
   background: #fff;
   border: 3px solid #4caf50;
 }
-
