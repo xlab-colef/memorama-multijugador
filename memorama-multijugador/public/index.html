@@ -9,11 +9,15 @@
 <body>
   <h1>🎴 Memorama 1 vs 1</h1>
 
-  <div id="start-screen">
-    <h2>Ingresa tu nombre</h2>
-    <input id="playerName" placeholder="Tu nombre" />
-    <button id="joinBtn">Unirme</button>
-    <p id="joinHint">Esperando al otro jugador...</p>
+  <div id="menu-screen">
+    <h2>Crear o unirse a una sala</h2>
+    <button id="createRoomBtn">Crear Sala</button>
+    <div>
+      <input id="roomCodeInput" placeholder="Código de sala" />
+      <input id="playerNameInput" placeholder="Tu nombre" />
+      <button id="joinRoomBtn">Unirse</button>
+    </div>
+    <p id="roomInfo"></p>
   </div>
 
   <div id="scoreboard" style="display:none;">
@@ -30,4 +34,3 @@
   <script src="script.js"></script>
 </body>
 </html>
-
