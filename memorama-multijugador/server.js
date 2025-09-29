@@ -2,40 +2,27 @@ const express = require("express");
 const http = require("http");
 const { Server } = require("socket.io");
 const path = require("path");
+const crypto = require("crypto");
 
 const app = express();
 const server = http.createServer(app);
 const io = new Server(server);
 
-// Assets estáticos
 app.use(express.static(path.join(__dirname, "public")));
 
-// --- CONFIG ---
+// --- Config ---
 const IMAGES = [
   "img/coyote1.png","img/coyote2.png",
   "img/lluvia1.png","img/lluvia2.png",
   "img/sol1.png","img/sol2.png",
-  "img/luna1.png","img/luna2.png",
-  "img/mar1.png","img/mar2.png",
-  "img/matate1.png","img/matate2.png",
-  "img/panga1.png","img/panga2.png",
-  "img/pescador1.png","img/pescador2.png",
-  "img/rio1.png","img/rio2.png",
-  "img/sonaja1.png","img/sonaja2.png",
-  "img/tierra1.png","img/tierra2.png",
-  "img/vibora1.png","img/vibora2.png"
+  "img/luna1.png","img/luna2.png"
+  // agrega más pares según quieras
 ];
-// totalPairs = IMAGES.length / 2
-// -----------------
 
-// Estado global por sala (simplificado: 1 sala / 1 partida)
-let players = []; // { id, name, ready }
-let scores = [0, 0];
-let turn = 0; // índice del jugador que tiene el turno
-let deck = []; // array de objetos { img, pairKey, state: 'hidden'|'flipped'|'matched' }
-let flippedThisTurn = []; // índices de cartas volteadas (0,1) en la comprobación
-let totalPairs = IMAGES.length / 2;
+// 🔑 Todas las partidas activas
+const games = {};
 
+// --- Helpers ---
 function getPairKey(path) {
   const file = path.split("/").pop();
   return file.replace(/\d+(?=\.\w+$)/, "");
@@ -52,148 +39,119 @@ function shuffleArray(arr) {
 
 function buildDeck() {
   const shuffled = shuffleArray(IMAGES);
-  deck = shuffled.map((img) => ({
+  return shuffled.map((img) => ({
     img,
     pairKey: getPairKey(img),
     state: "hidden"
   }));
 }
 
-// Reinicia todo para una nueva partida (sin desconectar jugadores)
-function resetGameState() {
-  scores = [0, 0];
-  turn = 0;
-  flippedThisTurn = [];
-  buildDeck();
-  totalPairs = IMAGES.length / 2;
+function createRoomId() {
+  return crypto.randomBytes(3).toString("hex"); // ej: "a1b2c3"
 }
 
-// Emitir estado parcial (sin exponer nada sensible) a todos
-function emitState() {
-  io.emit("state", {
-    players: players.map(p => ({ name: p.name, ready: p.ready })),
-    scores,
-    turn,
-    deckState: deck.map(c => c.state) // solo estados: hidden/flipped/matched
-  });
-}
-
+// --- Socket.IO ---
 io.on("connection", (socket) => {
-  console.log("Conexión:", socket.id);
+  console.log("Jugador conectado:", socket.id);
 
-  // Limitar a 2 jugadores
-  if (players.length >= 2) {
-    socket.emit("full", "Sala llena");
-    return;
-  }
+  // Crear nueva sala
+  socket.on("createRoom", (cb) => {
+    const roomId = createRoomId();
+    games[roomId] = {
+      players: [],
+      scores: [0, 0],
+      deck: buildDeck(),
+      turn: 0,
+      flippedThisTurn: []
+    };
+    socket.join(roomId);
+    cb(roomId);
+  });
 
-  const newPlayer = { id: socket.id, name: `Jugador ${players.length + 1}`, ready: false };
-  players.push(newPlayer);
-  socket.emit("welcome", { index: players.length - 1, name: newPlayer.name });
+  // Unirse a sala existente
+  socket.on("joinRoom", ({ roomId, name }, cb) => {
+    const game = games[roomId];
+    if (!game) return cb({ error: "Sala no encontrada" });
+    if (game.players.length >= 2) return cb({ error: "Sala llena" });
 
-  // enviar estado actual (posible jugador 1 conectado)
-  emitState();
+    const playerIndex = game.players.length;
+    game.players.push({ id: socket.id, name, ready: false });
+    socket.join(roomId);
 
-  // El cliente envía su nombre cuando el jugador hace click en 'Unirme'
-  socket.on("join", ({ name }) => {
-    const idx = players.findIndex(p => p.id === socket.id);
-    if (idx !== -1) {
-      players[idx].name = name || players[idx].name;
-      players[idx].ready = true;
-      io.emit("playersUpdated", players.map(p => ({ name: p.name, ready: p.ready })));
+    cb({ success: true, playerIndex });
 
-      // Si ambos están listos, iniciar partida
-      if (players.length === 2 && players.every(p => p.ready)) {
-        resetGameState();
-        // elegir inicio aleatorio
-        turn = Math.floor(Math.random() * 2);
-        io.emit("start", {
-          players: players.map(p => ({ name: p.name })),
-          turn,
-          deckSize: deck.length
-        });
-        // enviar estado inicial (cartas ocultas)
-        emitState();
-      }
+    // Notificar estado de jugadores
+    io.to(roomId).emit("playersUpdated", game.players);
+
+    // Iniciar si hay 2 jugadores
+    if (game.players.length === 2) {
+      game.players.forEach(p => (p.ready = true));
+      game.turn = Math.floor(Math.random() * 2);
+      io.to(roomId).emit("start", {
+        players: game.players,
+        turn: game.turn,
+        deckSize: game.deck.length
+      });
     }
   });
 
-  // Voltear carta solicitada por cliente
-  socket.on("flip", ({ index }) => {
-    const playerIdx = players.findIndex(p => p.id === socket.id);
-    if (playerIdx === -1) return;
-    if (playerIdx !== turn) return; // no es su turno
-    if (!deck[index]) return;
-    if (deck[index].state !== "hidden") return; // ya volteada o emparejada
+  // Voltear carta
+  socket.on("flip", ({ roomId, index }) => {
+    const game = games[roomId];
+    if (!game) return;
 
-    // Voltear en el servidor y notificar a todos
-    deck[index].state = "flipped";
-    flippedThisTurn.push(index);
-    io.emit("cardFlipped", { index, img: deck[index].img });
+    const playerIndex = game.players.findIndex(p => p.id === socket.id);
+    if (playerIndex !== game.turn) return;
+    const card = game.deck[index];
+    if (!card || card.state !== "hidden") return;
 
-    // Si ya hay 2 volteadas, comprobar
-    if (flippedThisTurn.length === 2) {
-      const [i1, i2] = flippedThisTurn;
-      const c1 = deck[i1], c2 = deck[i2];
+    card.state = "flipped";
+    game.flippedThisTurn.push(index);
+    io.to(roomId).emit("cardFlipped", { index, img: card.img });
+
+    if (game.flippedThisTurn.length === 2) {
+      const [i1, i2] = game.flippedThisTurn;
+      const c1 = game.deck[i1], c2 = game.deck[i2];
 
       if (c1.pairKey === c2.pairKey) {
-        // Match
-        c1.state = "matched";
-        c2.state = "matched";
-        scores[turn] += 1;
+        c1.state = c2.state = "matched";
+        game.scores[game.turn]++;
+        io.to(roomId).emit("matchResult", {
+          i1, i2, scores: game.scores, turn: game.turn
+        });
+        game.flippedThisTurn = [];
 
-        // Notificar match (mantener visibles)
-        io.emit("matchResult", { i1, i2, scores, turn });
-        flippedThisTurn = [];
-
-        // Verificar fin de juego
-        const matchedCount = deck.filter(c => c.state === "matched").length;
-        if (matchedCount === deck.length) {
-          // fin de juego
+        const matchedCount = game.deck.filter(c => c.state === "matched").length;
+        if (matchedCount === game.deck.length) {
           let winner;
-          if (scores[0] > scores[1]) winner = players[0].name;
-          else if (scores[1] > scores[0]) winner = players[1].name;
+          if (game.scores[0] > game.scores[1]) winner = game.players[0].name;
+          else if (game.scores[1] > game.scores[0]) winner = game.players[1].name;
           else winner = "Empate";
-          io.emit("gameOver", { scores, winner });
-          // resetear listo para nueva partida (mantener nombres)
-          players.forEach(p => p.ready = false);
-          io.emit("playersUpdated", players.map(p => ({ name: p.name, ready: p.ready })));
-          // no reset inmediato del deck; espera que los jugadores vuelvan a Unirse
-        } else {
-          // actualizar estado
-          emitState();
+          io.to(roomId).emit("gameOver", { scores: game.scores, winner });
+          delete games[roomId]; // liberar memoria
         }
       } else {
-        // No match: esperar un poco para que los clientes vean y luego ocultar
-        io.emit("noMatch", { i1, i2 });
+        io.to(roomId).emit("noMatch", { i1, i2 });
         setTimeout(() => {
-          // asegurarse de que las cartas sigan en estado flipped (nadie las cambió)
-          if (deck[i1].state === "flipped") deck[i1].state = "hidden";
-          if (deck[i2].state === "flipped") deck[i2].state = "hidden";
-
-          // cambiar turno
-          turn = turn === 0 ? 1 : 0;
-          flippedThisTurn = [];
-          io.emit("turnChanged", { turn });
-          emitState();
+          c1.state = c2.state = "hidden";
+          game.turn = game.turn === 0 ? 1 : 0;
+          game.flippedThisTurn = [];
+          io.to(roomId).emit("turnChanged", { turn: game.turn });
         }, 900);
       }
-    } else {
-      // Solo 1 carta volteada por ahora: actualizar estado
-      emitState();
     }
   });
 
   socket.on("disconnect", () => {
-    console.log("Desconexión:", socket.id);
-    players = players.filter(p => p.id !== socket.id);
-    // resetear todo
-    scores = [0, 0];
-    deck = [];
-    flippedThisTurn = [];
-    players.forEach(p => p.ready = false);
-    io.emit("reset", "Jugador desconectado, partida reiniciada");
-    emitState();
+    console.log("Jugador desconectado:", socket.id);
+    // eliminar jugador de todas las salas
+    for (const [roomId, game] of Object.entries(games)) {
+      game.players = game.players.filter(p => p.id !== socket.id);
+      if (game.players.length < 2) {
+        io.to(roomId).emit("reset", "Jugador desconectado, partida cancelada");
+        delete games[roomId];
+      }
+    }
   });
 });
 
