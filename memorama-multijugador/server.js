@@ -15,8 +15,15 @@ const IMAGES = [
   "img/coyote1.png","img/coyote2.png",
   "img/lluvia1.png","img/lluvia2.png",
   "img/sol1.png","img/sol2.png",
-  "img/luna1.png","img/luna2.png"
-  // agrega más pares según quieras
+  "img/luna1.png","img/luna2.png",
+  "img/mar1.png","img/mar2.png",
+  "img/matate1.png","img/matate2.png",
+  "img/panga1.png","img/panga2.png",
+  "img/pescador1.png","img/pescador2.png",
+  "img/rio1.png","img/rio2.png",
+  "img/sonaja1.png","img/sonaja2.png",
+  "img/tierra1.png","img/tierra2.png",
+  "img/vibora1.png","img/vibora2.png"
 ];
 
 // 🔑 Todas las partidas activas
