@@ -53,3 +53,17 @@ h1 {
   background: #fff;
   border: 3px solid #4caf50;
 }
+footer {
+  margin-top: 40px;
+  padding: 15px;
+  font-size: 0.9em;
+  color: #555;
+  background: #f9f9f9;
+  border-top: 1px solid #ddd;
+}
+
+footer p {
+  margin: 0;
+  line-height: 1.5;
+}
+
