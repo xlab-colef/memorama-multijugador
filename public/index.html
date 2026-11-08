@@ -1,0 +1,479 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1" />
+  <title>Memorama Cucapá - Videojuego Bilingüe Multijugador</title>
+  <meta name="description" content="Juego interactivo de memorama bilingüe Cucapá - Español con multijugador en tiempo real. Proyecto de Xquenda Lab, El Colef." />
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <!-- Canvas para confeti de victoria -->
+  <canvas id="confetti-canvas"></canvas>
+
+  <div class="app-container">
+    <!-- Barra Superior -->
+    <header class="app-header">
+      <div class="header-brand">
+        <span class="brand-icon">🎴</span>
+        <div>
+          <h1 class="brand-title">Memorama Cucapá</h1>
+          <p class="brand-subtitle">Tierras del Delta y Río Colorado</p>
+        </div>
+      </div>
+      <div class="header-actions">
+        <button id="btn-sound-toggle" class="btn-icon" title="Activar/Silenciar Sonido" aria-label="Sonido">
+          <span id="sound-icon">🔊</span>
+        </button>
+        <button id="btn-open-glossary" class="btn-secondary btn-sm" title="Explorar vocabulario Cucapá">
+          📖 Glosario
+        </button>
+        <button id="btn-open-credits" class="btn-icon" title="Créditos e información" aria-label="Información">
+          ℹ️
+        </button>
+      </div>
+    </header>
+
+    <!-- Banner Toast de Correspondencia Cucapá (Al hacer match) -->
+    <div id="match-toast" class="match-toast" role="status" aria-live="polite">
+      <div class="toast-content">
+        <span class="toast-badge">✨ ¡Par Encontrado!</span>
+        <div class="toast-pair">
+          <span id="toast-cucapa" class="toast-cucapa">pei</span>
+          <span class="toast-arrow">↔</span>
+          <span id="toast-spanish" class="toast-spanish">coyote</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- ============================================== -->
+    <!-- PANTALLA 1: MENÚ PRINCIPAL Y MODOS DE JUEGO     -->
+    <!-- ============================================== -->
+    <main id="screen-menu" class="screen active">
+      <div class="hero-card">
+        <div class="hero-badge">Cultura y Lengua Indígena</div>
+        <h2 class="hero-title">Empareja las cartas y aprende la lengua Cucapá</h2>
+        <p class="hero-desc">
+          Encuentra las parejas relacionando la palabra tradicional Cucapá con su significado en español.
+          ¡Juega con amigos en línea, en el mismo dispositivo o practica en solitario!
+        </p>
+
+        <!-- Pestañas de Modos de Juego -->
+        <div class="mode-tabs" role="tablist">
+          <button id="tab-online" class="mode-tab active" role="tab" aria-selected="true">
+            🌐 Multijugador Online
+          </button>
+          <button id="tab-local" class="mode-tab" role="tab" aria-selected="false">
+            👥 Multijugador Local
+          </button>
+          <button id="tab-solo" class="mode-tab" role="tab" aria-selected="false">
+            ⏱️ Solitario / Práctica
+          </button>
+        </div>
+
+        <!-- CONTENIDO PESTAÑA: MULTIJUGADOR ONLINE -->
+        <div id="panel-online" class="tab-panel active">
+          <div class="online-grid">
+            <!-- Crear Sala -->
+            <div class="panel-box">
+              <div class="box-header">
+                <h3>👑 Crear Nueva Sala</h3>
+                <p>Inicia una sala privada e invita a un amigo con un enlace.</p>
+              </div>
+
+              <div class="form-group">
+                <label for="create-name">Tu Nombre</label>
+                <div class="input-with-avatar">
+                  <div class="avatar-selector" data-target="create-avatar">
+                    <span id="create-avatar-display" class="current-avatar">🐺</span>
+                    <div class="avatar-dropdown" id="create-avatar-picker">
+                      <!-- Avatares insertados dinámicamente -->
+                    </div>
+                  </div>
+                  <input type="text" id="create-name" placeholder="Ej. Yuman" maxlength="16" value="Jugador 1" />
+                </div>
+              </div>
+
+              <div class="form-row">
+                <div class="form-group flex-1">
+                  <label for="create-pairs">Cartas / Dificultad</label>
+                  <select id="create-pairs">
+                    <option value="6">6 pares (12 cartas - Rápido)</option>
+                    <option value="8" selected>8 pares (16 cartas - Normal)</option>
+                    <option value="12">12 pares (24 cartas - Clásico)</option>
+                    <option value="15">15 pares (30 cartas - Completo)</option>
+                  </select>
+                </div>
+                <div class="form-group flex-1">
+                  <label for="create-timer">Tiempo por Turno</label>
+                  <select id="create-timer">
+                    <option value="15">15 segundos</option>
+                    <option value="30" selected>30 segundos</option>
+                    <option value="45">45 segundos</option>
+                    <option value="0">Sin límite</option>
+                  </select>
+                </div>
+              </div>
+
+              <button id="btn-create-room" class="btn-primary btn-block">
+                ✨ Crear Sala e Invitar
+              </button>
+            </div>
+
+            <!-- Unirse a Sala -->
+            <div class="panel-box">
+              <div class="box-header">
+                <h3>🚪 Unirse a Sala Existente</h3>
+                <p>Ingresa el código o utiliza el enlace que te compartieron.</p>
+              </div>
+
+              <div class="form-group">
+                <label for="join-code">Código de la Sala</label>
+                <input type="text" id="join-code" placeholder="Ej. A8X2Y" maxlength="6" class="input-code" />
+              </div>
+
+              <div class="form-group">
+                <label for="join-name">Tu Nombre</label>
+                <div class="input-with-avatar">
+                  <div class="avatar-selector" data-target="join-avatar">
+                    <span id="join-avatar-display" class="current-avatar">☀️</span>
+                    <div class="avatar-dropdown" id="join-avatar-picker">
+                      <!-- Avatares dinámicos -->
+                    </div>
+                  </div>
+                  <input type="text" id="join-name" placeholder="Ej. Cucapah" maxlength="16" value="Jugador 2" />
+                </div>
+              </div>
+
+              <button id="btn-join-room" class="btn-accent btn-block">
+                🚀 Entrar a la Sala
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- CONTENIDO PESTAÑA: MULTIJUGADOR LOCAL -->
+        <div id="panel-local" class="tab-panel">
+          <div class="panel-box max-w-md mx-auto">
+            <div class="box-header">
+              <h3>👥 Multijugador en el Mismo Dispositivo</h3>
+              <p>Jueguen por turnos en esta misma pantalla (ideal para tablets, PC o proyector).</p>
+            </div>
+
+            <div class="form-row">
+              <div class="form-group flex-1">
+                <label>Jugador 1</label>
+                <div class="input-with-avatar">
+                  <span class="current-avatar">🐺</span>
+                  <input type="text" id="local-p1-name" value="Jugador 1" maxlength="16" />
+                </div>
+              </div>
+              <div class="form-group flex-1">
+                <label>Jugador 2</label>
+                <div class="input-with-avatar">
+                  <span class="current-avatar">🌊</span>
+                  <input type="text" id="local-p2-name" value="Jugador 2" maxlength="16" />
+                </div>
+              </div>
+            </div>
+
+            <div class="form-group">
+              <label for="local-pairs">Número de Pares</label>
+              <select id="local-pairs">
+                <option value="6">6 pares (12 cartas - Rápido)</option>
+                <option value="8" selected>8 pares (16 cartas - Normal)</option>
+                <option value="12">12 pares (24 cartas - Clásico)</option>
+                <option value="15">15 pares (30 cartas - Todas)</option>
+              </select>
+            </div>
+
+            <button id="btn-start-local" class="btn-primary btn-block">
+              🎮 Iniciar Partida Local
+            </button>
+          </div>
+        </div>
+
+        <!-- CONTENIDO PESTAÑA: SOLITARIO / PRÁCTICA -->
+        <div id="panel-solo" class="tab-panel">
+          <div class="panel-box max-w-md mx-auto">
+            <div class="box-header">
+              <h3>⏱️ Modo Solitario / Práctica</h3>
+              <p>Pon a prueba tu memoria y aprende las 15 palabras Cucapá a tu ritmo.</p>
+            </div>
+
+            <div class="form-group">
+              <label for="solo-pairs">Número de Pares a Resolver</label>
+              <select id="solo-pairs">
+                <option value="6">6 pares (12 cartas)</option>
+                <option value="8" selected>8 pares (16 cartas)</option>
+                <option value="12">12 pares (24 cartas)</option>
+                <option value="15">15 pares (30 cartas - Desafío Completo)</option>
+              </select>
+            </div>
+
+            <div id="solo-record-display" class="record-box">
+              <span>🏆 Mejor Tiempo:</span>
+              <strong id="solo-best-time">--:--</strong>
+            </div>
+
+            <button id="btn-start-solo" class="btn-primary btn-block">
+              🎯 Iniciar Práctica
+            </button>
+          </div>
+        </div>
+      </div>
+    </main>
+
+    <!-- ============================================== -->
+    <!-- PANTALLA 2: LOBBY DE SALA ONLINE               -->
+    <!-- ============================================== -->
+    <section id="screen-lobby" class="screen">
+      <div class="lobby-card">
+        <div class="lobby-header">
+          <span class="lobby-tag">Sala Privada Online</span>
+          <div class="lobby-code-box">
+            <span class="code-label">CÓDIGO DE SALA:</span>
+            <span id="lobby-code-display" class="code-display">------</span>
+          </div>
+          <div class="lobby-share-actions">
+            <button id="btn-copy-code" class="btn-secondary btn-sm">
+              📋 Copiar Código
+            </button>
+            <button id="btn-copy-link" class="btn-primary btn-sm">
+              🔗 Copiar Enlace Directo
+            </button>
+          </div>
+          <span id="copy-status" class="copy-status"></span>
+        </div>
+
+        <!-- Jugadores en el Lobby -->
+        <div class="lobby-players">
+          <div id="lobby-player-0" class="player-slot active">
+            <div class="slot-avatar">🐺</div>
+            <div class="slot-info">
+              <strong class="slot-name">Esperando...</strong>
+              <span class="slot-role">👑 Anfitrión</span>
+            </div>
+            <div class="slot-status ready">✓ Listo</div>
+          </div>
+
+          <div class="lobby-vs">VS</div>
+
+          <div id="lobby-player-1" class="player-slot empty">
+            <div class="slot-avatar">⏳</div>
+            <div class="slot-info">
+              <strong class="slot-name">Esperando rival...</strong>
+              <span class="slot-role">Invitado</span>
+            </div>
+            <div class="slot-status waiting">Compartir código</div>
+          </div>
+        </div>
+
+        <!-- Ajustes de la partida en el lobby -->
+        <div class="lobby-settings">
+          <div class="setting-chip">
+            <span class="chip-label">Pares:</span>
+            <strong id="lobby-pairs-display">8 pares (16 cartas)</strong>
+          </div>
+          <div class="setting-chip">
+            <span class="chip-label">Tiempo por turno:</span>
+            <strong id="lobby-timer-display">30 segundos</strong>
+          </div>
+        </div>
+
+        <!-- Controles del Lobby -->
+        <div class="lobby-footer">
+          <button id="btn-leave-lobby" class="btn-outline">
+            ← Salir
+          </button>
+          <button id="btn-start-online-match" class="btn-primary" disabled>
+            Esperando al 2º jugador...
+          </button>
+        </div>
+      </div>
+    </section>
+
+    <!-- Cuenta regresiva antes de empezar -->
+    <div id="countdown-overlay" class="countdown-overlay">
+      <div class="countdown-circle">
+        <span id="countdown-number">3</span>
+      </div>
+      <p class="countdown-text">¡Preparados!</p>
+    </div>
+
+    <!-- ============================================== -->
+    <!-- PANTALLA 3: TABLERO DE JUEGO                   -->
+    <!-- ============================================== -->
+    <section id="screen-game" class="screen">
+      <!-- Barra de estado de partida -->
+      <div class="game-hud">
+        <div class="hud-player hud-p1" id="hud-p1">
+          <div class="hud-avatar" id="hud-p1-avatar">🐺</div>
+          <div class="hud-player-meta">
+            <span class="hud-name" id="hud-p1-name">Jugador 1</span>
+            <div class="hud-score-badge">
+              <span id="hud-p1-score">0</span> pts
+            </div>
+          </div>
+        </div>
+
+        <!-- Centro: Temporizador y Turno -->
+        <div class="hud-center">
+          <div id="turn-banner" class="turn-banner">
+            <span id="turn-text">Turno de: Jugador 1</span>
+          </div>
+
+          <div id="timer-container" class="timer-container">
+            <div class="timer-bar-bg">
+              <div id="timer-bar-fill" class="timer-bar-fill"></div>
+            </div>
+            <span id="timer-text" class="timer-text">30s</span>
+          </div>
+
+          <!-- Solo en modo solitario -->
+          <div id="solo-stats" class="solo-stats" style="display:none;">
+            <span>⏱️ <strong id="solo-stopwatch">00:00</strong></span>
+            <span>🎯 Intentos: <strong id="solo-flips-count">0</strong></span>
+          </div>
+        </div>
+
+        <div class="hud-player hud-p2" id="hud-p2">
+          <div class="hud-player-meta text-right">
+            <span class="hud-name" id="hud-p2-name">Jugador 2</span>
+            <div class="hud-score-badge">
+              <span id="hud-p2-score">0</span> pts
+            </div>
+          </div>
+          <div class="hud-avatar" id="hud-p2-avatar">☀️</div>
+        </div>
+      </div>
+
+      <!-- Tablero con Cartas 3D -->
+      <div id="game-board" class="board"></div>
+
+      <!-- Controles inferiores de la partida -->
+      <div class="game-bottom-bar">
+        <button id="btn-quit-game" class="btn-outline btn-sm">
+          ✕ Salir de la partida
+        </button>
+        <div class="pairs-left-counter">
+          Pares restantes: <strong id="pairs-left-count">0</strong>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============================================== -->
+    <!-- MODAL DE VICTORIA / FIN DE PARTIDA             -->
+    <!-- ============================================== -->
+    <dialog id="modal-gameover" class="modal">
+      <div class="modal-card">
+        <div class="gameover-trophy">🏆</div>
+        <h2 id="gameover-title" class="gameover-title">¡Fin de la Partida!</h2>
+        <p id="gameover-subtitle" class="gameover-subtitle">El gran ganador es...</p>
+
+        <div class="gameover-scores" id="gameover-scores">
+          <!-- Tarjetas de puntuación de ambos jugadores -->
+        </div>
+
+        <div id="rematch-status-msg" class="rematch-msg"></div>
+
+        <div class="modal-actions">
+          <button id="btn-request-rematch" class="btn-primary">
+            🔄 Pedir Revancha
+          </button>
+          <button id="btn-exit-to-menu" class="btn-secondary">
+            🏠 Menú Principal
+          </button>
+        </div>
+      </div>
+    </dialog>
+
+    <!-- ============================================== -->
+    <!-- MODAL GLOSARIO CULTURAL CUCAPÁ                 -->
+    <!-- ============================================== -->
+    <dialog id="modal-glossary" class="modal modal-lg">
+      <div class="modal-card">
+        <div class="modal-header">
+          <div>
+            <h2 class="modal-title">📖 Glosario Bilingüe Cucapá</h2>
+            <p class="modal-desc">Explora las palabras y representaciones tradicionales de la cultura Cucapá.</p>
+          </div>
+          <button id="btn-close-glossary" class="btn-close" aria-label="Cerrar">✕</button>
+        </div>
+
+        <div class="glossary-search-box">
+          <input type="text" id="glossary-search" placeholder="🔍 Buscar por palabra Cucapá o en español..." />
+        </div>
+
+        <div id="glossary-grid" class="glossary-grid">
+          <!-- Fichas de vocabulario inyectadas dinámicamente -->
+        </div>
+      </div>
+    </dialog>
+
+    <!-- ============================================== -->
+    <!-- MODAL DE CRÉDITOS E INFORMACIÓN                -->
+    <!-- ============================================== -->
+    <dialog id="modal-credits" class="modal">
+      <div class="modal-card">
+        <div class="modal-header">
+          <h2 class="modal-title">ℹ️ Sobre el Proyecto</h2>
+          <button id="btn-close-credits" class="btn-close" aria-label="Cerrar">✕</button>
+        </div>
+
+        <div class="credits-body">
+          <p>
+            Este memorama interactivo tiene como propósito la difusión, preservación y aprendizaje
+            lúdico de la <strong>lengua cucapá</strong>, pueblo originario del Delta del Río Colorado
+            en Baja California y Sonora, México.
+          </p>
+          <hr class="divider" />
+          <h4>Referencia lingüística</h4>
+          <p>
+            <em>Manual de la lengua cucapá</em> de <strong>Margarita Valenzuela</strong>.
+          </p>
+
+          <h4>Informantes</h4>
+          <ul class="credits-list">
+            <li><strong>Bertha Portillo Tambo</strong> — Informante</li>
+            <li><strong>María Isabel González Portillo</strong> — Informante</li>
+          </ul>
+
+          <h4>Apoyo y Colaboración</h4>
+          <ul class="credits-list">
+            <li><strong>Ruth Guadalupe González González</strong> — Apoyo</li>
+            <li><strong>Aron Antonio Renteria González</strong></li>
+            <li><strong>Jaziel Soto Torres</strong></li>
+          </ul>
+
+          <h4>Desarrollo y Difusión</h4>
+          <p>
+            Proyecto desarrollado en <strong>Xquenda Lab</strong>, Centro de Investigación de
+            <strong>El Colegio de la Frontera Norte (El Colef)</strong>.
+          </p>
+          <hr class="divider" />
+          <p class="text-muted text-sm">
+            Diseñado para jugarse en computadoras, tabletas y teléfonos móviles sin necesidad de instalación.
+          </p>
+        </div>
+      </div>
+    </dialog>
+
+    <!-- Footer Institucional -->
+    <footer class="app-footer">
+      <p>
+        Referencia: <em>Manual de la lengua cucapá</em> (Margarita Valenzuela) •
+        Desarrollado en <strong>Xquenda Lab</strong>, El Colegio de la Frontera Norte (El Colef).
+      </p>
+    </footer>
+  </div>
+
+  <script src="/socket.io/socket.io.js"></script>
+  <script src="script.js"></script>
+</body>
+</html>
+
+
